@@ -1,4 +1,4 @@
-﻿import { supabase } from './supabase'
+import { supabase } from './supabase'
 
 export const profileService = {
   async getProfile(userId) {
@@ -35,7 +35,10 @@ export const profileService = {
   async upsertProfile(userId, profileData) {
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({ user_id: userId, ...profileData, updated_at: new Date().toISOString() })
+      .upsert(
+        { user_id: userId, ...profileData, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      )
       .select()
       .single()
     if (error) throw error

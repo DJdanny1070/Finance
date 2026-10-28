@@ -37,12 +37,29 @@ export default function SignupPage() {
         password: form.password,
         fullName: form.fullName,
       })
-      if (data.user) {
+
+      if (!data.user) throw new Error('Sign up failed — no user returned.')
+
+      // If Supabase returns a session immediately (email confirmations disabled),
+      // set it explicitly so auth.uid() is available for the RLS policy check.
+      if (data.session) {
+        await authService.setSession(data.session)
+      }
+
+      // Try to upsert the profile. If the DB trigger already created it,
+      // this will update it. If the session isn't ready yet, the trigger
+      // will have already created the row — so we silently ignore the error.
+      try {
         await profileService.upsertProfile(data.user.id, {
           full_name: form.fullName,
           onboarding_completed: false,
         })
+      } catch (profileErr) {
+        // Profile will have been created by the DB trigger (005_auto_profile_trigger.sql).
+        // Not a fatal error — user can complete onboarding and profile will be updated then.
+        console.warn('Profile upsert skipped (trigger handles it):', profileErr.message)
       }
+
       toast.success("Account created! Let's set up your profile.")
       navigate('/onboarding')
     } catch (err) {
